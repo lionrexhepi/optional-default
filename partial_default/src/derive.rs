@@ -16,12 +16,16 @@ pub fn partial_default(input: DeriveInput) -> TokenStream {
     };
 
     let builder = generate_builder(&builder_name, &fields);
+
     let setter_impl = generate_setter_impl(&builder_name, &fields);
+    let new_impl = generate_new_impl(&builder_name, &fields);
+
     let build_impl = generate_build_impl(&struct_name, &builder_name, &fields);
 
     quote! {
         #builder
         #setter_impl
+        #new_impl
         #build_impl
     }
 }
@@ -44,6 +48,7 @@ fn generate_builder(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemStruct
         .collect::<Punctuated<_, Token![,]>>();
 
     parse_quote! {
+        #[derive(Default)]
         struct #builder_name<#flags> {
             #option_fields
         }
@@ -74,19 +79,55 @@ fn generate_setter_impl(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemIm
             )
             .collect::<Punctuated<_, Token![,]>>();
 
+        let field_setters = fields
+            .iter()
+            .filter_map(|FieldInfo { ident, .. }| {
+                if ident != &field.ident {
+                    Some(quote! {
+                        #ident: self. #ident
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Punctuated<_, Token![,]>>();
+
         quote! {
-            pub fn #ident(self, #ident: #ty) -> #builder_name<#flag_setter> {
-                Self {
-                    #ident: Some(#ident),
-                    ..self
+            pub fn #ident(self, value: #ty) -> #builder_name<#flag_setter> {
+                #builder_name {
+                    #ident: Some(value),
+                    #field_setters
                 }
             }
         }
     });
 
     parse_quote! {
-        impl<#(const #flags:bool,)*> MyStruct<#(#flags,)*> {
+        impl<#(const #flags:bool,)*> #builder_name<#(#flags,)*> {
             #(#setters)*
+        }
+    }
+}
+
+fn generate_new_impl(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemImpl {
+    let flags = (0..fields.len())
+        .map(|_| quote!(false))
+        .collect::<Punctuated<_, Token![,]>>();
+
+    let setters = fields
+        .iter()
+        .map(|FieldInfo { ident, .. }| -> FieldValue {
+            parse_quote! { #ident: None }
+        })
+        .collect::<Punctuated<_, Token![,]>>();
+
+    parse_quote! {
+        impl #builder_name<#flags> {
+            pub fn new() -> Self {
+                #builder_name {
+                    #setters
+                }
+            }
         }
     }
 }

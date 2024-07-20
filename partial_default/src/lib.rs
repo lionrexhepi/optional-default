@@ -5,7 +5,7 @@ mod derive;
 mod init;
 
 #[proc_macro_derive(PartialDefault, attributes(optional))]
-pub fn artial_default(input: TokenStream) -> TokenStream {
+pub fn partial_default(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     derive::partial_default(input).into()
 }
@@ -13,5 +13,5 @@ pub fn artial_default(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn new(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as ExprStruct);
-    new::new(input).into()
+    init::new(input).into()
 }
