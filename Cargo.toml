@@ -1,0 +1,2 @@
+[workspace]
+members = ["partial_default", "example"]
