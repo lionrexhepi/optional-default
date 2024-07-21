@@ -1,20 +1,20 @@
-# partial-default
+# optional-default
 A Helper macro to allow specifying default values for some fields of a rust struct while requiring some to be initialized manually.
 
 ## Usage
 
 Add `partial-default` to your crate's dependencies: `cargo add partial-default`
 
-1. Annotate your struct with the `PartialDefault` derive macro.
+1. Annotate your struct with the `OptionalDefault` derive macro.
 2. Annotate any optional fields with `#[optional]`.
 3. If the field should have a default value other than `Default::default()`, or its type does not implement the `Default` trait, you can specify your own default value within the `#[optional(default = <value>)]`.
 4. The macro will generate a second macro with the same name as your struct. Use this macro to initialize the struct with your specified default values
 
 ### Example
 ```rust
-use partial_default::PartialDefault;
+use optional_default::OptionalDefault;
 
-#[derive(Debug, PartialDefault)]
+#[derive(Debug, OptionalDefault)]
 struct Example {
     foo: i32, // Required field
     #[optional] 

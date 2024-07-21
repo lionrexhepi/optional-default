@@ -1,5 +1,5 @@
 [package]
-name = "partial-default"
+name = "optional-default"
 version = "0.1.0"
 edition = "2021"
 description = "Helper macro to allow specifying default values for only some of a struct's fields"

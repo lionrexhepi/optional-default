@@ -9,7 +9,7 @@ pub fn partial_default(input: DeriveInput) -> TokenStream {
     let struct_name = input.ident;
     let fields = match input.data {
         syn::Data::Struct(data) => extract_field_info(&data.fields),
-        _ => panic!("PartialDefault only works with structs"),
+        _ => panic!("OptionalDefault only works with structs"),
     };
 
     let rules = generate_rules(struct_name, fields);
@@ -54,7 +54,7 @@ fn generate_rules(name: Ident, fields: Vec<FieldInfo>) -> ItemMacro {
             };
             ( $($field:ident : $value:expr),*, ) => {
                 {
-                    ::partial_default::check_required!([#required_fields], [$($field),*]);
+                    ::optional_default::check_required!([#required_fields], [$($field),*]);
                     #name {
                        $($field: $value,)*
                        ..#name {

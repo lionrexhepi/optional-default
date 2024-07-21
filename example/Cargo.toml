@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-partial-default = {path="../partial-default"}
+optional-default = {path="../optional-default"}

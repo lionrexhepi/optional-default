@@ -1,6 +1,6 @@
-use partial_default::PartialDefault;
+use optional_default::OptionalDefault;
 
-#[derive(Debug, PartialDefault)]
+#[derive(Debug, OptionalDefault)]
 struct Something {
     franz: i32,
     #[optional(default = 42)]

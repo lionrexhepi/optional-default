@@ -1,2 +1,2 @@
 [workspace]
-members = ["partial-default", "example"]
+members = ["optional-default", "example"]
