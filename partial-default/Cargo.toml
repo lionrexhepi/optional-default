@@ -1,5 +1,5 @@
 [package]
-name = "partial_default"
+name = "partial-default"
 version = "0.1.0"
 edition = "2021"
 

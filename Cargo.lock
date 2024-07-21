@@ -6,11 +6,11 @@ version = 3
 name = "example"
 version = "0.1.0"
 dependencies = [
- "partial_default",
+ "partial-default",
 ]
 
 [[package]]
-name = "partial_default"
+name = "partial-default"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
