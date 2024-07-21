@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "example"
-version = "0.1.0"
-dependencies = [
- "partial_default",
-]
-
-[[package]]
 name = "partial_default"
 version = "0.1.0"
 dependencies = [
