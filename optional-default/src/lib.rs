@@ -67,6 +67,8 @@ pub fn derive_optional_default(input: proc_macro::TokenStream) -> proc_macro::To
     derive::optional_default(input).into()
 }
 
+/// A helper macro to check if all identifiers in the first array expression are also present in the second
+/// This is used internally by `optional-default` to check if all required fields are present in the macro invocation; It is not intended to be used directly.
 #[proc_macro]
 pub fn check_required(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as check_helper::CheckInput);
