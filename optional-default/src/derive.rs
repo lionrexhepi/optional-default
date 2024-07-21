@@ -5,7 +5,7 @@ use syn::{
     ItemMacro, Meta, Token,
 };
 
-pub fn partial_default(input: DeriveInput) -> TokenStream {
+pub fn optional_default(input: DeriveInput) -> TokenStream {
     let struct_name = input.ident;
     let fields = match input.data {
         syn::Data::Struct(data) => extract_field_info(&data.fields),
@@ -110,6 +110,6 @@ fn test() {
         }
     };
 
-    let output = partial_default(input);
+    let output = optional_default(input);
     println!("{}", output);
 }

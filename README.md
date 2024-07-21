@@ -3,7 +3,7 @@ A Helper macro to allow specifying default values for some fields of a rust stru
 
 ## Usage
 
-Add `partial-default` to your crate's dependencies: `cargo add partial-default`
+Add `optional-default` to your crate's dependencies: `cargo add optional-default`
 
 1. Annotate your struct with the `OptionalDefault` derive macro.
 2. Annotate any optional fields with `#[optional]`.

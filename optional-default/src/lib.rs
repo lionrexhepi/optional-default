@@ -1,9 +1,9 @@
-//!# partial-default
+//!# optional-default
 //!A Helper macro to allow specifying default values for some fields of a rust struct while requiring some to be initialized manually.
 //!
 //!## Usage
 //!
-//!Add `partial-default` to your crate's dependencies: `cargo add partial-default`
+//!Add `optional-default` to your crate's dependencies: `cargo add optional-default`
 //!
 //!1. Annotate your struct with the `OptionalDefault` derive macro.
 //!2. Annotate any optional fields with `#[optional]`.
@@ -12,7 +12,7 @@
 //!
 //!### Example
 //!```rust
-//!use partial_default::OptionalDefault;
+//!use optional_default::OptionalDefault;
 //!
 //!#[derive(Debug, OptionalDefault)]
 //!struct Example {
@@ -62,9 +62,9 @@ mod check_helper;
 mod derive;
 
 #[proc_macro_derive(OptionalDefault, attributes(optional))]
-pub fn derive_partial_default(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_optional_default(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    derive::partial_default(input).into()
+    derive::optional_default(input).into()
 }
 
 #[proc_macro]
