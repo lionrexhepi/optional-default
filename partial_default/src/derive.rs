@@ -1,177 +1,68 @@
-use core::panic;
-
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::ToTokens;
 use syn::{
-    parse_quote, punctuated::Punctuated, spanned::Spanned, DeriveInput, Expr, ExprAssign,
-    FieldValue, Fields, GenericArgument, GenericParam, Ident, ItemImpl, ItemStruct, Meta, Token,
+    parse_quote, punctuated::Punctuated, DeriveInput, Expr, ExprAssign, FieldValue, Fields, Ident,
+    ItemMacro, Meta, Token,
 };
 
 pub fn partial_default(input: DeriveInput) -> TokenStream {
     let struct_name = input.ident;
-    let builder_name = Ident::new(&format!("{}Builder", struct_name), struct_name.span());
     let fields = match input.data {
-        syn::Data::Struct(ref data) => extract_field_info(&data.fields),
+        syn::Data::Struct(data) => extract_field_info(&data.fields),
         _ => panic!("PartialDefault only works with structs"),
     };
 
-    let builder = generate_builder(&builder_name, &fields);
+    let rules = generate_rules(struct_name, fields);
 
-    let setter_impl = generate_setter_impl(&builder_name, &fields);
-    let new_impl = generate_new_impl(&builder_name, &fields);
-
-    let build_impl = generate_build_impl(&struct_name, &builder_name, &fields);
-
-    quote! {
-        #builder
-        #setter_impl
-        #new_impl
-        #build_impl
-    }
+    rules.to_token_stream()
 }
 
-fn generate_builder(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemStruct {
-    let option_fields = fields
+fn generate_rules(name: Ident, fields: Vec<FieldInfo>) -> ItemMacro {
+    let required_fields = fields
         .iter()
-        .map(|field| {
-            let ident = &field.ident;
-            let ty = &field.ty;
-            quote! {
-                #ident: Option<#ty>
-            }
-        })
-        .collect::<Punctuated<_, Token![,]>>();
-
-    let flags = fields
-        .iter()
-        .map(|FieldInfo { flag, .. }| quote! (const #flag: bool))
-        .collect::<Punctuated<_, Token![,]>>();
-
-    parse_quote! {
-        #[derive(Default)]
-        struct #builder_name<#flags> {
-            #option_fields
-        }
-    }
-}
-
-fn generate_setter_impl(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemImpl {
-    let flags = fields
-        .iter()
-        .map(|FieldInfo { flag, .. }| flag)
-        .collect::<Vec<_>>();
-    let setters = fields.iter().map(|field| {
-        let ident = &field.ident;
-        let ty = &field.ty;
-
-        let flag_setter = fields
-            .iter()
-            .map(
-                |FieldInfo {
-                     ident: other, flag, ..
-                 }| {
-                    if other == ident {
-                        quote! { true }
-                    } else {
-                        quote! { #flag }
-                    }
-                },
-            )
-            .collect::<Punctuated<_, Token![,]>>();
-
-        let field_setters = fields
-            .iter()
-            .filter_map(|FieldInfo { ident, .. }| {
-                if ident != &field.ident {
-                    Some(quote! {
-                        #ident: self. #ident
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect::<Punctuated<_, Token![,]>>();
-
-        quote! {
-            pub fn #ident(self, value: #ty) -> #builder_name<#flag_setter> {
-                #builder_name {
-                    #ident: Some(value),
-                    #field_setters
-                }
-            }
-        }
-    });
-
-    parse_quote! {
-        impl<#(const #flags:bool,)*> #builder_name<#(#flags,)*> {
-            #(#setters)*
-        }
-    }
-}
-
-fn generate_new_impl(builder_name: &Ident, fields: &Vec<FieldInfo>) -> ItemImpl {
-    let flags = (0..fields.len())
-        .map(|_| quote!(false))
-        .collect::<Punctuated<_, Token![,]>>();
-
-    let setters = fields
-        .iter()
-        .map(|FieldInfo { ident, .. }| -> FieldValue {
-            parse_quote! { #ident: None }
-        })
-        .collect::<Punctuated<_, Token![,]>>();
-
-    parse_quote! {
-        impl #builder_name<#flags> {
-            pub fn new() -> Self {
-                #builder_name {
-                    #setters
-                }
-            }
-        }
-    }
-}
-
-fn generate_build_impl(
-    struct_name: &Ident,
-    builder_name: &Ident,
-    fields: &Vec<FieldInfo>,
-) -> ItemImpl {
-    let impl_generics = fields
-        .iter()
-        .filter_map(|FieldInfo { flag, default, .. }| -> Option<GenericParam> {
-            default.as_ref().map(|_| parse_quote! { const #flag:bool })
-        })
-        .collect::<Punctuated<_, Token![,]>>();
-
-    let builder_generics = fields
-        .iter()
-        .map(|FieldInfo { flag, default, .. }| -> GenericArgument {
-            if default.is_some() {
-                parse_quote! { #flag }
+        .filter_map(|FieldInfo { ident, default }| {
+            if default.is_none() {
+                Some(ident.clone())
             } else {
-                parse_quote! { true }
+                None
             }
         })
         .collect::<Punctuated<_, Token![,]>>();
 
-    let fields = fields
-        .iter()
-        .map(|FieldInfo { ident, default, .. }| -> FieldValue {
-            match default {
-                Some(default) => parse_quote! { #ident: self. #ident .unwrap_or(#default) },
-                None => parse_quote! { #ident: self.#ident.unwrap() },
+    let rest = fields
+        .into_iter()
+        .map(|FieldInfo { ident, default }| -> FieldValue {
+            let default = default.unwrap_or_else(|| {
+                // Since the field may not have a default impl, we need to use a zeroed value instead This value may not be valid, but it should not cause issues as long as we insure that the invalid value from the rest strut does not actually get assigned to any field, i. e, as long as the required field check is present and insures that all fields without a default value are assigned by the user, meaning they don't get read from the rest struct.
+
+                parse_quote!({
+                    #[allow(invalid_value)]
+                    unsafe {
+                        ::std::mem::MaybeUninit::zeroed().assume_init()
+                    }
+                })
+            });
+            parse_quote! {
+                #ident: #default
             }
         })
         .collect::<Punctuated<_, Token![,]>>();
-
     parse_quote! {
-        impl<#impl_generics> #builder_name <#builder_generics> {
-            pub fn build(self) -> #struct_name {
-                #struct_name {
-                    #fields
+        macro_rules! #name {
+            ($($field:ident : $value: expr),*) => {
+                #name!( $($field : $value),* , )
+            };
+            ( $($field:ident : $value:expr),*, ) => {
+                {
+                    ::partial_default::check_required!([#required_fields], [$($field),*]);
+                    #name {
+                       $($field: $value,)*
+                       ..#name {
+                            #rest
+                       }
+                    }
                 }
-            }
+            };
         }
     }
 }
@@ -181,9 +72,6 @@ fn extract_field_info(fields: &Fields) -> Vec<FieldInfo> {
         .iter()
         .map(|field| {
             let ident = field.ident.as_ref().unwrap().clone();
-            let ty = field.ty.clone();
-            let flag_name = ident.to_string().to_ascii_uppercase();
-            let flag = Ident::new(&format!("{}_IS_SET", flag_name), ident.span());
             let default = field
                 .attrs
                 .iter()
@@ -199,8 +87,6 @@ fn extract_field_info(fields: &Fields) -> Vec<FieldInfo> {
                 });
             FieldInfo {
                 ident,
-                flag,
-                ty,
                 default,
             }
         })
@@ -209,18 +95,18 @@ fn extract_field_info(fields: &Fields) -> Vec<FieldInfo> {
 
 struct FieldInfo {
     ident: Ident,
-    flag: Ident,
-    ty: syn::Type,
     default: Option<Expr>,
 }
 
 #[test]
 fn test() {
     let input = parse_quote! {
-        struct MyStruct {
-            a: i32,
-            #[optional(default = "abc".to_string())]
-            b: String,
+        struct Something {
+            field1: i32,
+            #[optional(default = 42)]
+            field2: i32,
+            #[optional]
+            field3: i32,
         }
     };
 
